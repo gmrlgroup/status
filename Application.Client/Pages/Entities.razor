@@ -1,0 +1,392 @@
+@page "/entities"
+@using Application.Shared.Models
+@using Application.Shared.Services
+@using Application.Shared.Enums
+@using Microsoft.FluentUI.AspNetCore.Components
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject HttpClient _httpClient
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@attribute [Authorize]
+
+<PageTitle>Entities</PageTitle>
+
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-6 md:flex md:items-center md:justify-between">
+                <div class="flex-1 min-w-0">
+                    <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                        Entities
+                    </h1>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Manage your system entities and their dependencies
+                    </p>
+                </div>
+                <div class="mt-4 flex md:mt-0 md:ml-4">
+                    <button @onclick="CreateEntity" 
+                            class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        New Entity
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        @if (isLoading)
+        {
+            <div class="flex justify-center items-center h-64">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        }
+        else if (filteredEntities?.Any() == true)
+        {
+            <!-- Entities Table -->
+            <div class="bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-medium text-gray-900">Entities (@filteredEntities.Count)</h3>
+                        <div class="flex items-center space-x-3">
+                            <!-- Search Filter -->
+                            <div class="relative">
+                                <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                <input @bind="searchFilter" @oninput="OnSearchFilterChanged" 
+                                       class="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="Search entities..." />
+                            </div>
+                            <!-- Type Filter -->
+                            <select @bind="typeFilter" @bind:after="() => ApplyFilters()" 
+                                    class="border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 px-3 py-2">
+                                <option value="">All Types</option>
+                                @foreach (var entityType in Enum.GetValues<EntityType>())
+                                {
+                                    <option value="@entityType">@entityType.ToString()</option>
+                                }
+                            </select>
+                            <!-- Status Filter -->
+                            <select @bind="statusFilter" @bind:after="() => ApplyFilters()" 
+                                    class="border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 px-3 py-2">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FluentDataGrid -->
+                <div class="overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">
+                    <FluentDataGrid Items="@filteredEntities.AsQueryable()" 
+                                    Class="w-full table-auto"
+                                    ShowHover="true"
+                                    RowSize="@DataGridRowSize.Medium"
+                                    ResizableColumns="true">
+                        
+                        <TemplateColumn Title="Type" 
+                                        Sortable="true"
+                                        Class="px-6 py-4">
+                            <div class="flex items-center">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @context.GetEntityTypeClass()">
+                                    @context.GetEntityTypeIcon()
+                                    @context.EntityType.ToString()
+                                </span>
+                            </div>
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Name" 
+                                        Sortable="true"
+                                        Class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <button @onclick="() => ViewEntity(context.Id)" style="border: none;"
+                                        class="text-sm font-medium text-blue-600 hover:text-blue-900 text-left hover:underline">
+                                    @context.Name
+                                </button>
+                                @if (!string.IsNullOrEmpty(context.Description))
+                                {
+                                    <span class="text-xs text-gray-500 truncate max-w-xs">@context.Description</span>
+                                }
+                            </div>
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Owner" 
+                                        Sortable="true"
+                                        Class="px-6 py-4">
+                            <span class="text-sm text-gray-900">@(context.Owner ?? "-")</span>
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Version"
+                                        Class="px-6 py-4">
+                            <span class="text-sm text-gray-900">@(context.Version ?? "-")</span>
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Dependencies"
+                                        Class="px-6 py-4">
+                            @if (context.Dependencies?.Any() == true)
+                            {
+                                <div class="flex items-center text-sm text-gray-900">
+                                    <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                    </svg>
+                                    @context.Dependencies.Count
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-sm text-gray-500">0</span>
+                            }
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Status"
+                                        Class="px-6 py-4">
+                            <div class="flex items-center">
+                                <span class="w-2 h-2 @(context.IsActive ? "bg-green-400" : "bg-gray-400") rounded-full mr-2"></span>
+                                <span class="text-sm @(context.IsActive ? "text-green-800" : "text-gray-600")">
+                                    @(context.IsActive ? "Active" : "Inactive")
+                                </span>
+                                @if (context.IsCritical)
+                                {
+                                    <svg class="w-4 h-4 ml-2 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                    </svg>
+                                }
+                            </div>
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Actions"
+                                        Class="px-6 py-4 text-right">
+                            <div class="flex items-center justify-end space-x-2">
+                                <button @onclick="() => EditEntity(context.Id)" 
+                                        style="border: none;"
+                                        class="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                                        title="Edit Entity">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                </button>
+                                <button @onclick="() => DeleteEntity(context)" 
+                                    style="border: none;"
+                                        class="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                                        title="Delete Entity">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </TemplateColumn>
+                        
+                    </FluentDataGrid>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Empty State -->
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14-7l2 2m0 0l2 2m-2-2v6m-2-2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9a2 2 0 012-2h2M7 7V5a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No entities found</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    @if (string.IsNullOrEmpty(searchFilter) && string.IsNullOrEmpty(typeFilter) && string.IsNullOrEmpty(statusFilter))
+                    {
+                        <text>Get started by creating a new entity.</text>
+                    }
+                    else
+                    {
+                        <text>Try adjusting your filters or search terms.</text>
+                    }
+                </p>
+                <div class="mt-6">
+                    @if (string.IsNullOrEmpty(searchFilter) && string.IsNullOrEmpty(typeFilter) && string.IsNullOrEmpty(statusFilter))
+                    {
+                        <button @onclick="CreateEntity" 
+                                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            New Entity
+                        </button>
+                    }
+                    else
+                    {
+                        <button @onclick="ClearFilters" 
+                                class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Clear Filters
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "w")] public string WorkspaceId { get; set; }
+    
+    private List<Entity>? entities;
+    private List<Entity> filteredEntities = new();
+    private bool isLoading = true;
+    
+    // Filter properties
+    private string searchFilter = string.Empty;
+    private string typeFilter = string.Empty;
+    private string statusFilter = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEntities();
+    }
+
+    private async Task LoadEntities()
+    {
+        if (!_httpClient.DefaultRequestHeaders.Contains("X-Workspace-ID"))
+        {
+            _httpClient.DefaultRequestHeaders.Add("X-Workspace-ID", WorkspaceId ?? "default-workspace");
+        }
+
+        try
+        {
+            entities = await _httpClient.GetFromJsonAsync<List<Entity>>($"api/entities?workspaceId={WorkspaceId ?? "default-workspace"}");
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading entities: {ex.Message}");
+            entities = new List<Entity>();
+            filteredEntities = new List<Entity>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        if (entities == null)
+        {
+            filteredEntities = new List<Entity>();
+            return;
+        }
+
+        var filtered = entities.AsEnumerable();
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchFilter))
+        {
+            filtered = filtered.Where(e => 
+                e.Name.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
+                (e.Description?.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (e.Owner?.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        // Apply type filter
+        if (!string.IsNullOrWhiteSpace(typeFilter) && Enum.TryParse<EntityType>(typeFilter, out var entityType))
+        {
+            filtered = filtered.Where(e => e.EntityType == entityType);
+        }
+
+        // Apply status filter
+        if (!string.IsNullOrWhiteSpace(statusFilter))
+        {
+            var isActive = statusFilter == "active";
+            filtered = filtered.Where(e => e.IsActive == isActive);
+        }
+
+        filteredEntities = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private void OnSearchFilterChanged(ChangeEventArgs e)
+    {
+        searchFilter = e.Value?.ToString() ?? string.Empty;
+        ApplyFilters();
+    }
+
+    private void OnTypeFilterChanged(ChangeEventArgs e)
+    {
+        typeFilter = e.Value?.ToString() ?? string.Empty;
+        ApplyFilters();
+    }
+
+    private void OnStatusFilterChanged(ChangeEventArgs e)
+    {
+        statusFilter = e.Value?.ToString() ?? string.Empty;
+        ApplyFilters();
+    }
+
+    private void ClearFilters()
+    {
+        searchFilter = string.Empty;
+        typeFilter = string.Empty;
+        statusFilter = string.Empty;
+        ApplyFilters();
+    }
+
+    private void CreateEntity()
+    {
+        Navigation.NavigateTo($"/entities/create?w={WorkspaceId}");
+    }
+
+    private void ViewEntity(string entityId)
+    {
+        Navigation.NavigateTo($"/entities/{entityId}?w={WorkspaceId}");
+    }
+
+    private void EditEntity(string entityId)
+    {
+        Navigation.NavigateTo($"/entities/{entityId}/edit?w={WorkspaceId}");
+    }
+
+    private async Task DeleteEntity(Entity entity)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{entity.Name}'?");
+        if (confirmed)
+        {
+            try
+            {
+                await _httpClient.DeleteAsync($"api/entities/{entity.Id}");
+                await LoadEntities(); // Refresh the list
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting entity: {ex.Message}");
+                await JSRuntime.InvokeVoidAsync("alert", "Error deleting entity. Please try again.");
+            }
+        }
+    }
+
+    // private string GetEntityTypeClass(EntityType entityType)
+    // {
+    //     return entityType switch
+    //     {
+    //         EntityType.Server => "bg-green-100 text-green-800",
+    //         EntityType.Database => "bg-blue-100 text-blue-800",
+    //         EntityType.Report => "bg-purple-100 text-purple-800",
+    //         EntityType.Dataset => "bg-yellow-100 text-yellow-800",
+    //         EntityType.DataPipeline => "bg-indigo-100 text-indigo-800",
+    //         _ => "bg-gray-100 text-gray-800"
+    //     };
+    // }
+
+    // private string GetEntityTypeIcon(EntityType entityType)
+    // {
+    //     return entityType switch
+    //     {
+    //         EntityType.Server => "🖥️ ",
+    //         EntityType.Database => "🗄️ ",
+    //         EntityType.Report => "📊 ",
+    //         EntityType.Dataset => "📈 ",
+    //         EntityType.DataPipeline => "🔄 ",
+    //         _ => "📁 "
+    //     };
+    // }
+}

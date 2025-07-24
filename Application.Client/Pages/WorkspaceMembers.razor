@@ -1,0 +1,324 @@
+@page "/workspace/{workspaceId}/members"
+@using Application.Shared.Models
+@using Application.Shared.Models.User
+@using Microsoft.FluentUI.AspNetCore.Components
+@inject HttpClient _httpClient
+@inject NavigationManager _navigationManager
+@inject AuthenticationStateProvider _authenticationStateProvider
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize]
+
+<PageTitle>Workspace Members</PageTitle>
+
+<div class="container mx-auto px-4 py-6">
+    <!-- Breadcrumb Navigation -->
+    <nav class="flex mb-4" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="/workspaces" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600">
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Building())" class="w-4 h-4 mr-2" />
+                    Workspaces
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <FluentIcon Value="@(new Icons.Regular.Size16.ChevronRight())" class="w-5 h-5 text-gray-400" />
+                    <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2">Members</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Workspace Members</h1>
+        <p class="text-gray-600 mt-2">Manage users and their roles in this workspace</p>
+    </div>
+
+    <!-- Add User Section -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Add New Member</h2>
+        
+        <EditForm Model="@addUserModel" OnValidSubmit="@HandleAddUser" FormName="add-user-to-workspace" novalidate>
+            <DataAnnotationsValidator />
+            <FluentValidationSummary />
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <FluentTextField 
+                        Name="Email" 
+                        @bind-Value="@addUserModel.Email" 
+                        style="width: 100%;" 
+                        Label="User Email" 
+                        Required 
+                        Placeholder="Enter user email" />
+                    <FluentValidationMessage For="@(() => addUserModel.Email)" />
+                </div>
+                
+                <div>
+                    <FluentSelect TOption="string"
+                        Value="@addUserModel.Role.ToString()"
+                        ValueChanged="@(value => addUserModel.Role = (MemberRole)Enum.Parse(typeof(MemberRole), value))"
+                        Label="Role"
+                        style="width: 100%;">
+                        <FluentOption Value="@MemberRole.Owner.ToString()">Owner</FluentOption>
+                        <FluentOption Value="@MemberRole.Member.ToString()">Member</FluentOption>
+                        <FluentOption Value="@MemberRole.Coach.ToString()">Coach</FluentOption>
+                        <FluentOption Value="@MemberRole.Customer.ToString()">Customer</FluentOption>
+                    </FluentSelect>
+                </div>
+
+                <div class="flex items-end">
+                    <FluentButton 
+                        Type="ButtonType.Submit" 
+                        Appearance="Appearance.Accent" 
+                        Loading="@isAddingUser"
+                        style="width: 100%;">
+                        @if (isAddingUser)
+                        {
+                            <span>Adding...</span>
+                        }
+                        else
+                        {
+                            <span>Add Member</span>
+                        }
+                    </FluentButton>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <FluentTextField 
+                    Name="Notes" 
+                    @bind-Value="@addUserModel.Notes" 
+                    style="width: 100%;" 
+                    Label="Notes (Optional)" 
+                    Placeholder="Add notes about this member" />
+                <FluentValidationMessage For="@(() => addUserModel.Notes)" />
+            </div>
+        </EditForm>
+    </div>
+
+    <!-- Members List -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Current Members</h2>
+        </div>
+        
+        @if (isLoading)
+        {
+            <div class="p-6 text-center">
+                <p class="text-gray-500">Loading members...</p>
+            </div>
+        }
+        else if (members?.Any() == true)
+        {
+            <div class="divide-y divide-gray-200">
+                @foreach (var member in members)
+                {
+                    <div class="px-6 py-4 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-900">
+                                    @member.ApplicationUser?.Email
+                                </h3>
+                                <p class="text-sm text-gray-500">
+                                    @member.ApplicationUser?.UserName
+                                </p>
+                                @if (!string.IsNullOrEmpty(member.Notes))
+                                {
+                                    <p class="text-xs text-gray-400 mt-1">@member.Notes</p>
+                                }
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-4">
+                            <div class="flex flex-col items-end">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @GetRoleBadgeClass(member.Role)">
+                                    @member.Role.ToString()
+                                </span>
+                                <span class="text-xs text-gray-500 mt-1">
+                                    Joined @member.JoinedDate?.ToString("MMM dd, yyyy")
+                                </span>
+                            </div>
+                            
+                            <div class="flex space-x-2">
+                                <FluentSelect TOption="string"
+                                    Value="@member.Role.ToString()"
+                                    ValueChanged="@(async value => await UpdateMemberRole(member.ApplicationUserId!, (MemberRole)Enum.Parse(typeof(MemberRole), value)))"
+                                    style="min-width: 100px;">
+                                    <FluentOption Value="@MemberRole.Owner.ToString()">Owner</FluentOption>
+                                    <FluentOption Value="@MemberRole.Member.ToString()">Member</FluentOption>
+                                    <FluentOption Value="@MemberRole.Coach.ToString()">Coach</FluentOption>
+                                    <FluentOption Value="@MemberRole.Customer.ToString()">Customer</FluentOption>
+                                </FluentSelect>
+                                
+                                <FluentButton 
+                                    Appearance="Appearance.Stealth" 
+                                    OnClick="@(() => RemoveMember(member.ApplicationUserId!))"
+                                    title="Remove member">
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Accent" />
+                                </FluentButton>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="p-6 text-center">
+                <p class="text-gray-500">No members found</p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string WorkspaceId { get; set; } = string.Empty;
+    
+    private List<WorkspaceMember>? members;
+    private AddUserToWorkspaceByEmailModel addUserModel = new();
+    private bool isLoading = true;
+    private bool isAddingUser = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Set up headers
+        await SetupHeaders();
+        
+        // Initialize the model with workspace ID
+        addUserModel.WorkspaceId = WorkspaceId;
+        addUserModel.Role = MemberRole.Member;
+        
+        await LoadMembers();
+    }
+
+    private async Task SetupHeaders()
+    {
+        // Add user ID to headers
+        var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                if (!_httpClient.DefaultRequestHeaders.Contains("UserId"))
+                {
+                    _httpClient.DefaultRequestHeaders.Add("UserId", userId);
+                }
+            }
+        }
+    }
+
+    private async Task LoadMembers()
+    {
+        isLoading = true;
+        try
+        {
+            members = await _httpClient.GetFromJsonAsync<List<WorkspaceMember>>($"api/workspaces/{WorkspaceId}/members");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading members: {ex.Message}");
+            members = new List<WorkspaceMember>();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleAddUser()
+    {
+        isAddingUser = true;
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync($"api/workspaces/{WorkspaceId}/members/by-email", addUserModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Reset form
+                addUserModel = new AddUserToWorkspaceByEmailModel 
+                { 
+                    WorkspaceId = WorkspaceId, 
+                    Role = MemberRole.Member 
+                };
+                
+                // Reload members
+                await LoadMembers();
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error adding user: {errorMessage}");
+                // You could show a toast notification here
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding user: {ex.Message}");
+        }
+        finally
+        {
+            isAddingUser = false;
+        }
+    }
+
+    private async Task UpdateMemberRole(string userId, MemberRole newRole)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsJsonAsync($"api/workspaces/{WorkspaceId}/members/{userId}/role", newRole);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadMembers();
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error updating role: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating role: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveMember(string userId)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"api/workspaces/{WorkspaceId}/members/{userId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadMembers();
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error removing member: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error removing member: {ex.Message}");
+        }
+    }
+
+    private string GetRoleBadgeClass(MemberRole role)
+    {
+        return role switch
+        {
+            MemberRole.Owner => "bg-purple-100 text-purple-800",
+            MemberRole.Member => "bg-blue-100 text-blue-800",
+            MemberRole.Coach => "bg-green-100 text-green-800",
+            MemberRole.Customer => "bg-yellow-100 text-yellow-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+}

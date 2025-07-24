@@ -1,0 +1,388 @@
+@page "/users"
+@using Application.Shared.Models.User
+@using Application.Models
+@using Microsoft.FluentUI.AspNetCore.Components
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject HttpClient _httpClient
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@attribute [Authorize]
+
+<PageTitle>Users</PageTitle>
+
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-6 md:flex md:items-center md:justify-between">
+                <div class="flex-1 min-w-0">
+                    <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                        Users
+                    </h1>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Manage user accounts and permissions
+                    </p>
+                </div>
+                <div class="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+                    <button @onclick="ManageWorkspaceMembers" 
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.196-2.121M17 20v-2a3 3 0 01-3-3v-2a3 3 0 013-3 3 3 0 013 3v2a3 3 0 01-3 3zm-1 0H6a3 3 0 01-3-3v-2a3 3 0 013-3h2a3 3 0 013 3v2a3 3 0 01-3 3zm4-10a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        Workspace Members
+                    </button>
+                    <button @onclick="CreateUser" 
+                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        New User
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        @if (isLoading)
+        {
+            <div class="flex justify-center items-center h-64">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        }
+        else if (filteredUsers?.Any() == true)
+        {
+            <!-- Users Table -->
+            <div class="bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-medium text-gray-900">Users (@filteredUsers.Count)</h3>
+                        <div class="flex items-center space-x-3">
+                            <!-- Search Filter -->
+                            <div class="relative">
+                                <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                <input @bind="searchFilter" @oninput="OnSearchFilterChanged" 
+                                       class="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="Search users..." />
+                            </div>
+                            <!-- Status Filter -->
+                            <select @bind="statusFilter" @bind:after="() => ApplyFilters()" 
+                                    class="border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 px-3 py-2">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FluentDataGrid -->
+                <div class="overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">
+                    <FluentDataGrid Items="@filteredUsers.AsQueryable()" 
+                                    Class="w-full table-auto"
+                                    ShowHover="true"
+                                    RowSize="@DataGridRowSize.Medium"
+                                    ResizableColumns="true">
+                        
+                        <TemplateColumn Title="User" 
+                                        Sortable="true"
+                                        Class="px-6 py-4">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                        <span class="text-sm font-medium text-blue-600">
+                                            @(GetUserInitials(context.UserName))
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <button @onclick="() => ViewUser(context.Id)" style="border: none;"
+                                            class="text-sm font-medium text-blue-600 hover:text-blue-900 text-left hover:underline">
+                                        @context.UserName
+                                    </button>
+                                    <div class="text-sm text-gray-500">@context.Email</div>
+                                </div>
+                            </div>
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Email" 
+                                        Sortable="true"
+                                        Class="px-6 py-4">
+                            <span class="text-sm text-gray-900">@context.Email</span>
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Phone"
+                                        Class="px-6 py-4">
+                            <span class="text-sm text-gray-900">@(context.PhoneNumber ?? "-")</span>
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Email Confirmed"
+                                        Class="px-6 py-4">
+                            <div class="flex items-center">
+                                <span class="w-2 h-2 @(context.EmailConfirmed ? "bg-green-400" : "bg-red-400") rounded-full mr-2"></span>
+                                <span class="text-sm @(context.EmailConfirmed ? "text-green-800" : "text-red-600")">
+                                    @(context.EmailConfirmed ? "Confirmed" : "Pending")
+                                </span>
+                            </div>
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Created"
+                                        Class="px-6 py-4">
+                            @if (context.CreatedOn.HasValue)
+                            {
+                                <div class="flex flex-col">
+                                    <span class="text-sm text-gray-900">@context.CreatedOn.Value.ToString("MMM dd, yyyy")</span>
+                                    <span class="text-xs text-gray-500">@context.CreatedOn.Value.ToString("HH:mm")</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-sm text-gray-500">-</span>
+                            }
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Status"
+                                        Class="px-6 py-4">
+                            <div class="flex items-center">
+                                @if (context.IsDeleted == true)
+                                {
+                                    <span class="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
+                                    <span class="text-sm text-red-600">Deleted</span>
+                                }
+                                else if (context.LockoutEnd.HasValue && context.LockoutEnd > DateTimeOffset.UtcNow)
+                                {
+                                    <span class="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
+                                    <span class="text-sm text-yellow-600">Locked</span>
+                                }
+                                else
+                                {
+                                    <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                                    <span class="text-sm text-green-600">Active</span>
+                                }
+                            </div>
+                        </TemplateColumn>
+                        
+                        <TemplateColumn Title="Actions"
+                                        Class="px-6 py-4 text-right">
+                            <div class="flex items-center justify-end space-x-2">
+                                <button @onclick="() => ViewUser(context.Id)" 
+                                        style="border: none;"
+                                        class="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-50 transition-colors"
+                                        title="View User">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                </button>
+                                <button @onclick="() => EditUser(context.Id)" 
+                                        style="border: none;"
+                                        class="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                                        title="Edit User">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                </button>
+                                @if (context.IsDeleted != true)
+                                {
+                                    <button @onclick="() => DeleteUser(context)" 
+                                        style="border: none;"
+                                            class="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                                            title="Delete User">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                }
+                            </div>
+                        </TemplateColumn>
+                        
+                    </FluentDataGrid>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Empty State -->
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.196-2.196M17 20v-2a3 3 0 00-3-3H8a3 3 0 00-3 3v2m16 0v2H4v-2m13-4a2 2 0 100-4 2 2 0 000 4zm-5 0a2 2 0 100-4 2 2 0 000 4z"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No users found</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    @if (string.IsNullOrEmpty(searchFilter) && string.IsNullOrEmpty(statusFilter))
+                    {
+                        <text>Get started by creating a new user.</text>
+                    }
+                    else
+                    {
+                        <text>Try adjusting your filters or search terms.</text>
+                    }
+                </p>
+                <div class="mt-6">
+                    @if (string.IsNullOrEmpty(searchFilter) && string.IsNullOrEmpty(statusFilter))
+                    {
+                        <button @onclick="CreateUser" 
+                                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            New User
+                        </button>
+                    }
+                    else
+                    {
+                        <button @onclick="ClearFilters" 
+                                class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Clear Filters
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "w")] public string WorkspaceId { get; set; }
+    
+    private List<ApplicationUser>? users;
+    private List<ApplicationUser> filteredUsers = new();
+    private bool isLoading = true;
+    
+    // Filter properties
+    private string searchFilter = string.Empty;
+    private string statusFilter = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        if (!_httpClient.DefaultRequestHeaders.Contains("X-Company-ID"))
+        {
+            _httpClient.DefaultRequestHeaders.Add("X-Company-ID", WorkspaceId ?? "default-workspace");
+        }
+
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<Response<List<ApplicationUser>>>($"api/users");
+            users = response?.Items ?? new List<ApplicationUser>();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+            users = new List<ApplicationUser>();
+            filteredUsers = new List<ApplicationUser>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        if (users == null)
+        {
+            filteredUsers = new List<ApplicationUser>();
+            return;
+        }
+
+        var filtered = users.AsEnumerable();
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchFilter))
+        {
+            filtered = filtered.Where(u => 
+                (u.UserName?.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.Email?.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.PhoneNumber?.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        // Apply status filter
+        if (!string.IsNullOrWhiteSpace(statusFilter))
+        {
+            switch (statusFilter)
+            {
+                case "active":
+                    filtered = filtered.Where(u => u.IsDeleted != true && (!u.LockoutEnd.HasValue || u.LockoutEnd <= DateTimeOffset.UtcNow));
+                    break;
+                case "inactive":
+                    filtered = filtered.Where(u => u.IsDeleted == true || (u.LockoutEnd.HasValue && u.LockoutEnd > DateTimeOffset.UtcNow));
+                    break;
+            }
+        }
+
+        filteredUsers = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private void OnSearchFilterChanged(ChangeEventArgs e)
+    {
+        searchFilter = e.Value?.ToString() ?? string.Empty;
+        ApplyFilters();
+    }
+
+    private void ClearFilters()
+    {
+        searchFilter = string.Empty;
+        statusFilter = string.Empty;
+        ApplyFilters();
+    }
+
+    private void CreateUser()
+    {
+        Navigation.NavigateTo($"/users/create?w={WorkspaceId}");
+    }
+
+    private void ManageWorkspaceMembers()
+    {
+        Navigation.NavigateTo($"/workspace/{WorkspaceId}/members");
+    }
+
+    private void ViewUser(string userId)
+    {
+        Navigation.NavigateTo($"/users/{userId}?w={WorkspaceId}");
+    }
+
+    private void EditUser(string userId)
+    {
+        Navigation.NavigateTo($"/users/{userId}/edit?w={WorkspaceId}");
+    }
+
+    private async Task DeleteUser(ApplicationUser user)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{user.UserName}'?");
+        if (confirmed)
+        {
+            try
+            {
+                await _httpClient.DeleteAsync($"api/users/{user.Id}");
+                await LoadUsers(); // Refresh the list
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting user: {ex.Message}");
+                await JSRuntime.InvokeVoidAsync("alert", "Error deleting user. Please try again.");
+            }
+        }
+    }
+
+    private string GetUserInitials(string? userName)
+    {
+        if (string.IsNullOrEmpty(userName))
+            return "?";
+        
+        var parts = userName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        
+        return userName.Length >= 2 ? userName.Substring(0, 2).ToUpper() : userName.Substring(0, 1).ToUpper();
+    }
+}

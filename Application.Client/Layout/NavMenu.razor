@@ -1,0 +1,189 @@
+﻿@using System.Security.Claims
+@using Microsoft.AspNetCore.SignalR.Client
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@implements IDisposable
+@inject NavigationManager _navigation
+@inject StateContainer _stateContainer
+@inject HttpClient _client
+@inject ClientAuthenticationDetail _clientAuthenticationDetail
+
+@inject IToastService _toastService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+
+<div class="navmenu">
+    <input type="checkbox" title="Menu expand/collapse toggle" id="navmenu-toggle" class="navmenu-icon" />
+    <label for="navmenu-toggle" class="navmenu-icon"><FluentIcon Value="@(new Icons.Regular.Size20.Navigation())" Color="Color.Fill" /></label>
+    <nav class="sitenav" aria-labelledby="main-menu">
+
+        <FluentNavMenu Id="main-menu" Width="250" Collapsible="true" Title="Navigation menu" @bind-Expanded="expanded" CustomToggle="true">
+
+            <FluentNavLink Href="@($"{queryParameter}")" Match="NavLinkMatch.All" Icon="@(new Icons.Regular.Size20.Home())" IconColor="Color.Accent">Home</FluentNavLink>
+
+            <AuthorizeView>
+                <Authorized>                    
+                    <FluentNavLink Href="@($"entities{queryParameter}")" Icon="@(new Icons.Regular.Size20.Server())" IconColor="Color.Accent">Entities</FluentNavLink>
+                    <FluentNavLink Href="@($"incidents{queryParameter}")" Icon="@(new Icons.Regular.Size20.Warning())" IconColor="Color.Accent">Incidents</FluentNavLink>
+                </Authorized>
+            </AuthorizeView>
+            
+              <AuthorizeView>
+                <Authorized>
+                    <FluentNavGroup Title="Organization" Tooltip="Organization" Icon="@(new Icons.Regular.Size24.Organization())">
+                        <FluentNavLink Href="/workspaces" Icon="@(new Icons.Regular.Size20.Building())" IconColor="Color.Accent">My Workspaces</FluentNavLink>
+                        <FluentNavLink Href="@($"users{queryParameter}")" Icon="@(new Icons.Regular.Size20.People())" IconColor="Color.Accent">All Users</FluentNavLink>
+                        <FluentNavLink Href="@($"users/create{queryParameter}")" Icon="@(new Icons.Regular.Size20.PersonAdd())" IconColor="Color.Accent">Add User</FluentNavLink>
+                        <FluentNavLink Href="/workspace/new" Icon="@(new Icons.Regular.Size20.AddCircle())" IconColor="Color.Accent">Create Workspace</FluentNavLink>
+                    </FluentNavGroup>
+                    <FluentNavLink Href="Account/Manage">@context.User.Identity?.Name</FluentNavLink>
+                    <form action="Account/Logout" method="post">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                        <FluentButton Type="ButtonType.Submit" Style="width: 100%;">Logout</FluentButton>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <FluentNavLink Href="Account/Register">Register</FluentNavLink>
+                    <FluentNavLink Href="Account/Login">Login</FluentNavLink>
+                </NotAuthorized>
+            </AuthorizeView>
+        </FluentNavMenu>
+    </nav>
+</div>
+
+<FluentMenuProvider />
+<FluentToastProvider MaxToastCount="10" @rendermode="@RenderMode.InteractiveWebAssembly" />
+
+
+@code {
+
+    [SupplyParameterFromQuery(Name = "w")]
+    private string? workspaceId { get; set; }
+
+    private bool expanded = true;
+
+    private string? currentUrl;
+
+    private string queryParameter => _stateContainer.Workspace is null ? "" : $"?w={_stateContainer.Workspace.Id}";
+    ClaimsPrincipal ClaimsPrincipalUser = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        @* hubConnection = new HubConnectionBuilder()
+            .WithUrl(_navigation.ToAbsoluteUri("/notification/datajob"))
+            .Build();
+
+        hubConnection.On<Notification<DataJob>>("ReceiveMessage", (notification) =>
+        {
+            // var encodedMsg = $"{message}";
+            // messages.Add(encodedMsg);
+            ShowToast(notification);
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync(); *@
+
+
+
+        currentUrl = _navigation.ToBaseRelativePath(_navigation.Uri);
+        _navigation.LocationChanged += OnLocationChanged;
+
+        var userId = await _clientAuthenticationDetail.GetUserId();
+
+        if(_stateContainer.Workspace == null && await _clientAuthenticationDetail.UserIsAuthenticated())
+        {
+            _stateContainer.Workspace = await GetUserDefaultWorkspace(userId);
+        }
+        else
+        {
+            if (!await _clientAuthenticationDetail.UserIsAuthenticated())
+                Console.WriteLine("Customers INITIALIZE: User not authencated");
+        }
+
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipalUser = authState.User;
+
+        if (ClaimsPrincipalUser.Identity != null)
+        {
+            var useridentity = ClaimsPrincipalUser.Identity.Name;
+            var roles = ClaimsPrincipalUser.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
+
+            foreach(var role in roles)
+            {
+                Console.WriteLine($"Role: {role}");
+            }
+        }
+
+        
+
+        _stateContainer.OnChange += StateHasChanged;
+    }
+
+    private HubConnection? hubConnection;
+    private List<string> messages = [];
+    private string? userInput;
+    private string? messageInput;
+
+
+    public bool IsConnected =>
+        hubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = _navigation.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _navigation.LocationChanged -= OnLocationChanged;
+    }
+
+
+
+
+
+    private async Task<Workspace> GetUserDefaultWorkspace(string userId)
+    {
+        var uri = _client.BaseAddress;
+
+        // add userId to the header
+        _client.DefaultRequestHeaders.Add("userId", userId);
+
+        var workspaces = await _client.GetFromJsonAsync<List<Workspace>>("api/workspaces");
+
+        // // get the first workspace
+        return workspaces?.FirstOrDefault() ?? new Workspace();
+    }
+
+
+
+    
+    @* void ShowToast(Notification<DataJob> notification)
+    {
+
+        _toastService.ShowCommunicationToast(new ToastParameters<CommunicationToastContent>()
+            {
+                Intent = ToastIntent.Success,
+                Title = notification.Data.Name,
+                Timeout = 4000,
+                Content = new CommunicationToastContent()
+                {
+                    Subtitle = notification.Message,
+                    Details = notification.Data.Duration,
+                },
+            });
+
+    } *@
+
+}

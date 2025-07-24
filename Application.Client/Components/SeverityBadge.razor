@@ -1,0 +1,72 @@
+@using Application.Shared.Enums
+
+@if (Severity.HasValue)
+{
+    <span class="severity-badge @GetSeverityClass()">
+        @GetSeverityText()
+    </span>
+}
+
+@code {
+    [Parameter] public IncidentSeverity? Severity { get; set; }
+
+    private string GetSeverityClass()
+    {
+        return Severity switch
+        {
+            IncidentSeverity.Low => "severity-low",
+            IncidentSeverity.Medium => "severity-medium",
+            IncidentSeverity.High => "severity-high",
+            IncidentSeverity.Critical => "severity-critical",
+            _ => "severity-unknown"
+        };
+    }
+
+    private string GetSeverityText()
+    {
+        return Severity switch
+        {
+            IncidentSeverity.Low => "Low",
+            IncidentSeverity.Medium => "Medium",
+            IncidentSeverity.High => "High",
+            IncidentSeverity.Critical => "Critical",
+            _ => "Unknown"
+        };
+    }
+}
+
+<style>
+    .severity-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .severity-low {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+
+    .severity-medium {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+
+    .severity-high {
+        background-color: #fed7aa;
+        color: #c2410c;
+    }
+
+    .severity-critical {
+        background-color: #fecaca;
+        color: #991b1b;
+    }
+
+    .severity-unknown {
+        background-color: #f3f4f6;
+        color: #374151;
+    }
+</style>

@@ -1,0 +1,79 @@
+@using Application.Shared.Enums
+
+@if (Status.HasValue)
+{
+    <span class="status-badge @GetStatusClass()">
+        @GetStatusText()
+    </span>
+}
+
+@code {
+    [Parameter] public EntityStatus? Status { get; set; }
+
+    private string GetStatusClass()
+    {
+        return Status switch
+        {
+            EntityStatus.Online => "status-online",
+            EntityStatus.Offline => "status-offline",
+            EntityStatus.Degraded => "status-degraded",
+            EntityStatus.Maintenance => "status-maintenance",
+            EntityStatus.Error => "status-error",
+            _ => "status-unknown"
+        };
+    }
+
+    private string GetStatusText()
+    {
+        return Status switch
+        {
+            EntityStatus.Online => "Online",
+            EntityStatus.Offline => "Offline",
+            EntityStatus.Degraded => "Degraded",
+            EntityStatus.Maintenance => "Maintenance",
+            EntityStatus.Error => "Error",
+            _ => "Unknown"
+        };
+    }
+}
+
+<style>
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .status-online {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+
+    .status-offline {
+        background-color: #fecaca;
+        color: #991b1b;
+    }
+
+    .status-degraded {
+        background-color: #fed7aa;
+        color: #c2410c;
+    }
+
+    .status-maintenance {
+        background-color: #e0e7ff;
+        color: #3730a3;
+    }
+
+    .status-error {
+        background-color: #fecaca;
+        color: #991b1b;
+    }
+
+    .status-unknown {
+        background-color: #f3f4f6;
+        color: #374151;
+    }
+</style>

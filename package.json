@@ -1,0 +1,12 @@
+{
+  "name": "flowbyte-status",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build-css": "tailwindcss -i ./Application/wwwroot/input.css -o ./Application/wwwroot/styles.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "tailwindcss": "^3.4.1"
+  }
+}

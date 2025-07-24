@@ -1,0 +1,139 @@
+@using Application.Shared.Models
+@using Application.Client.Services
+@inject IncidentClientService IncidentService
+
+<div class="incident-updates">
+    @if (IsLoading)
+    {
+        <div class="loading">Loading updates...</div>
+    }
+    else if (Updates.Any())
+    {
+        <div class="updates-header">
+            <h4>Recent Updates</h4>
+        </div>
+        <div class="updates-list">
+            @foreach (var update in Updates.OrderByDescending(u => u.PostedAt))
+            {
+                <div class="update-item">
+                    <div class="update-header">
+                        <span class="update-author">@(update.Author ?? "System")</span>
+                        <span class="update-time">@update.PostedAt.ToString("MMM dd, yyyy HH:mm")</span>
+                        @if (update.StatusChange.HasValue)
+                        {
+                            <IncidentStatusBadge Status="update.StatusChange" />
+                        }
+                    </div>
+                    <div class="update-message">
+                        @update.Message
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="no-updates">No updates available</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string IncidentId { get; set; } = string.Empty;
+    [Parameter] public bool AutoLoad { get; set; } = true;
+
+    private List<IncidentUpdate> Updates = new();
+    private bool IsLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AutoLoad && !string.IsNullOrEmpty(IncidentId))
+        {
+            await LoadUpdates();
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(IncidentId))
+        {
+            await LoadUpdates();
+        }
+    }
+
+    private async Task LoadUpdates()
+    {
+        IsLoading = true;
+        Updates = await IncidentService.GetIncidentUpdatesAsync(IncidentId);
+        IsLoading = false;
+        StateHasChanged();
+    }
+
+    public async Task RefreshUpdates()
+    {
+        await LoadUpdates();
+    }
+}
+
+<style>
+    .incident-updates {
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+    }
+
+    .updates-header {
+        padding: 1rem;
+        background: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .updates-header h4 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .updates-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .update-item {
+        padding: 1rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .update-item:last-child {
+        border-bottom: none;
+    }
+
+    .update-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .update-author {
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .update-time {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .update-message {
+        color: #4b5563;
+        line-height: 1.5;
+    }
+
+    .loading, .no-updates {
+        padding: 2rem;
+        text-align: center;
+        color: #6b7280;
+    }
+</style>

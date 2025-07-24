@@ -1,0 +1,146 @@
+@page "/workspace/new"
+@using System.ComponentModel.DataAnnotations
+@inject HttpClient _httpClient
+@inject NavigationManager _navigationManager
+@inject IToastService _toastService
+@inject AuthenticationStateProvider _authenticationStateProvider
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize]
+
+<PageTitle>Create Workspace</PageTitle>
+
+<div class="container" style="max-width: 600px; margin: 50px auto; padding: 20px;">
+    <div style="background-color: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h2 style="color: #2c3e50; margin-bottom: 10px;">Create New Workspace</h2>
+            <p style="color: #7f8c8d;">Fill in the details below to create your workspace</p>
+        </div>
+
+        <EditForm Model="@workspaceModel" OnValidSubmit="@HandleValidSubmit" FormName="create-workspace" novalidate>
+            <DataAnnotationsValidator />
+            <FluentValidationSummary />
+
+            <FluentStack Orientation="Orientation.Vertical" Style="gap: 20px;">
+                <div>
+                    <FluentTextField 
+                        Name="Id" 
+                        @bind-Value="@workspaceModel.Id" 
+                        style="width: 100%;" 
+                        Label="Id" 
+                        Required 
+                        Placeholder="Enter your workspace id" />
+                    <FluentValidationMessage For="@(() => workspaceModel.Id)" />
+                </div>
+                
+                <div>
+                    <FluentTextField 
+                        Name="Name" 
+                        @bind-Value="@workspaceModel.Name" 
+                        style="width: 100%;" 
+                        Label="Name" 
+                        Required 
+                        Placeholder="Enter your workspace name" />
+                    <FluentValidationMessage For="@(() => workspaceModel.Name)" />
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 30px;">
+                    <FluentButton 
+                        Type="ButtonType.Submit" 
+                        Appearance="Appearance.Accent" 
+                        Loading="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span>Creating...</span>
+                        }
+                        else
+                        {
+                            <span>Create Workspace</span>
+                        }
+                    </FluentButton>
+                    
+                    <FluentButton 
+                        Type="ButtonType.Button" 
+                        Appearance="Appearance.Neutral" 
+                        OnClick="@Cancel"
+                        Disabled="@isSubmitting">
+                        Cancel
+                    </FluentButton>
+                </div>
+            </FluentStack>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private Workspace workspaceModel = new();
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Add user ID to headers
+        var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                _httpClient.DefaultRequestHeaders.Remove("UserId");
+                _httpClient.DefaultRequestHeaders.Add("UserId", userId);
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+        try
+        {
+            @* var workspace = new Workspace
+            {
+                Name = workspaceModel.Name
+            }; *@
+
+            var response = await _httpClient.PostAsJsonAsync("api/workspaces", workspaceModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var createdWorkspace = await response.Content.ReadFromJsonAsync<Workspace>();
+                _toastService.ShowSuccess("Workspace created successfully!");
+                _navigationManager.NavigateTo($"/?w={createdWorkspace?.Id}");
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                _toastService.ShowError($"Failed to create workspace: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _toastService.ShowError($"An error occurred: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        _navigationManager.NavigateTo("/");
+    }
+
+    @* public class WorkspaceInputModel
+    {
+        [Required(ErrorMessage = "Workspace name is required")]
+        [StringLength(100, ErrorMessage = "Workspace name cannot exceed 100 characters")]
+        public string Name { get; set; } = string.Empty;
+    } *@
+}
+
+
+
+
+
+
