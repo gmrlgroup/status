@@ -67,6 +67,8 @@ public class Entity : BaseModel
             EntityType.Report => "bg-purple-100 text-purple-800",
             EntityType.Dataset => "bg-yellow-100 text-yellow-800",
             EntityType.DataPipeline => "bg-indigo-100 text-indigo-800",
+            EntityType.Table => "bg-orange-100 text-orange-800",
+            EntityType.DataJob => "bg-red-100 text-red-800",
             _ => "bg-gray-100 text-gray-800"
         };
     }
@@ -80,6 +82,8 @@ public class Entity : BaseModel
             EntityType.Report => "📊",
             EntityType.Dataset => "📈",
             EntityType.DataPipeline => "🔄",
+            EntityType.Table => "📋",
+            EntityType.DataJob => "⚙️",
             _ => "📁"
         };
     }
