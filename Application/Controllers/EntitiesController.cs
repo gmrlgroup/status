@@ -225,6 +225,21 @@ public class EntitiesController : ControllerBase
         return Ok(dependencies);
     }
 
+    // GET: api/Entities/{id}/dependency-tree
+    [HttpGet("{id}/dependency-tree")]
+    public async Task<ActionResult<DependencyTree>> GetEntityDependencyTree(string id)
+    {
+        try
+        {
+            var tree = await _entityService.GetEntityDependencyTreeAsync(id);
+            return Ok(tree);
+        }
+        catch (ArgumentException)
+        {
+            return NotFound();
+        }
+    }
+
     // POST: api/Entities/dependencies
     [HttpPost("dependencies")]
     public async Task<ActionResult<EntityDependency>> CreateEntityDependency(EntityDependency dependency)

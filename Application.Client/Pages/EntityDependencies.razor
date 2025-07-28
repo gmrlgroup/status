@@ -199,6 +199,92 @@
                             }
                         </div>
                     </div>
+
+                    <!-- Dependency Tree -->
+                    <div class="bg-white shadow rounded-lg mt-6">
+                        <div class="px-6 py-5 border-b border-gray-200">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                                Dependency Tree
+                            </h3>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Complete dependency hierarchy showing all layers of dependencies and dependents
+                            </p>
+                        </div>
+                        
+                        <div class="p-6">
+                            @if (dependencyTree != null)
+                            {
+                                <div class="space-y-6">
+                                    <!-- Upstream Dependencies (What this entity depends on) -->
+                                    @if (dependencyTree.Dependencies?.Any() == true)
+                                    {
+                                        <div>
+                                            <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+                                                <svg class="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                                                </svg>
+                                                Upstream Dependencies (@dependencyTree.Dependencies.Count)
+                                            </h4>
+                                            <p class="text-sm text-gray-600 mb-4">Entities that @entity.Name depends on:</p>
+                                            <div class="ml-4">
+                                                @foreach (var dep in dependencyTree.Dependencies)
+                                                {
+                                                    @RenderDependencyNode(dep, true, 0)
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+
+                                    <!-- Current Entity -->
+                                    <div class="text-center py-4">
+                                        <div class="inline-flex items-center px-4 py-2 rounded-lg bg-blue-50 border-2 border-blue-200">
+                                            <span class="w-3 h-3 @GetStatusColor(dependencyTree.CurrentStatus) rounded-full mr-3"></span>
+                                            <span class="font-semibold text-blue-900">@dependencyTree.EntityName</span>
+                                            <span class="ml-2 text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">@dependencyTree.EntityType</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Downstream Dependents (What depends on this entity) -->
+                                    @if (dependencyTree.Dependents?.Any() == true)
+                                    {
+                                        <div>
+                                            <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+                                                <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"></path>
+                                                </svg>
+                                                Downstream Dependents (@dependencyTree.Dependents.Count)
+                                            </h4>
+                                            <p class="text-sm text-gray-600 mb-4">Entities that depend on @entity.Name:</p>
+                                            <div class="ml-4">
+                                                @foreach (var dep in dependencyTree.Dependents)
+                                                {
+                                                    @RenderDependencyNode(dep, false, 0)
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (dependencyTree.Dependencies?.Any() != true && dependencyTree.Dependents?.Any() != true)
+                                    {
+                                        <div class="text-center py-8">
+                                            <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                            </svg>
+                                            <h3 class="mt-2 text-sm font-medium text-gray-900">No dependency tree</h3>
+                                            <p class="mt-1 text-sm text-gray-500">This entity has no dependencies or dependents configured.</p>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else if (isLoadingTree)
+                            {
+                                <div class="flex justify-center items-center py-8">
+                                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                    <span class="ml-2 text-sm text-gray-600">Loading dependency tree...</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Add/Edit Dependency Form -->
@@ -350,7 +436,9 @@
 
     private Entity? entity;
     private List<Entity> availableEntities = new();
+    private DependencyTree? dependencyTree;
     private bool isLoading = true;
+    private bool isLoadingTree = false;
     private bool showDependencyForm = false;
     private bool isSubmittingDependency = false;
     private EntityDependency dependencyForm = new();
@@ -375,8 +463,14 @@
             if (entity?.WorkspaceId != null)
             {
                 var allEntities = await _httpClient.GetFromJsonAsync<List<Entity>>($"api/entities");
-                availableEntities = allEntities.Where(e => e.Id != entity.Id).ToList();
+                if (allEntities != null)
+                {
+                    availableEntities = allEntities.Where(e => e.Id != entity.Id).ToList();
+                }
             }
+
+            // Load dependency tree
+            await LoadDependencyTree();
         }
         catch (Exception ex)
         {
@@ -385,6 +479,25 @@
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private async Task LoadDependencyTree()
+    {
+        if (string.IsNullOrEmpty(EntityId)) return;
+
+        try
+        {
+            isLoadingTree = true;
+            dependencyTree = await _httpClient.GetFromJsonAsync<DependencyTree>($"api/entities/{EntityId}/dependency-tree");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dependency tree: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingTree = false;
         }
     }
 
@@ -431,8 +544,8 @@
 
         isSubmittingDependency = true;
 
-        dependencyForm.WorkspaceId = entity.WorkspaceId;
-        Console.WriteLine($"--- Workspace ID: {entity.WorkspaceId}");
+        dependencyForm.WorkspaceId = entity?.WorkspaceId;
+        Console.WriteLine($"--- Workspace ID: {entity?.WorkspaceId}");
 
         try
         {
@@ -493,5 +606,79 @@
     private void BackToEntity()
     {
         Navigation.NavigateTo($"/entities/{EntityId}");
+    }
+
+    private string GetStatusColor(EntityStatus status)
+    {
+        return status switch
+        {
+            EntityStatus.Online => "bg-green-500",
+            EntityStatus.Offline => "bg-red-500",
+            EntityStatus.Degraded => "bg-yellow-500",
+            EntityStatus.Maintenance => "bg-blue-500",
+            _ => "bg-gray-500"
+        };
+    }
+
+    private RenderFragment RenderDependencyNode(DependencyTreeNode node, bool isUpstream, int depth)
+    {
+        return @<div class="@($"ml-{depth * 4} mb-2")">
+            <div class="flex items-center p-3 border border-gray-200 rounded-lg bg-gray-50">
+                <div class="flex items-center flex-1">
+                    <span class="w-3 h-3 @GetStatusColor(node.CurrentStatus) rounded-full mr-3"></span>
+                    <div class="flex-1">
+                        <div class="flex items-center">
+                            <span class="text-sm font-medium text-gray-900">@node.EntityName</span>
+                            @if (node.IsCritical)
+                            {
+                                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    Critical
+                                </span>
+                            }
+                            @if (!node.IsActive)
+                            {
+                                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    Inactive
+                                </span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrEmpty(node.Description))
+                        {
+                            <p class="text-xs text-gray-500 mt-1">@node.Description</p>
+                        }
+                        <div class="flex items-center text-xs text-gray-500 space-x-2 mt-1">
+                            <span>@node.EntityType</span>
+                            <span>•</span>
+                            <span>Level @(node.Level + 1)</span>
+                            @if (node.Order > 0)
+                            {
+                                <span>•</span>
+                                <span>Order @node.Order</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-400">
+                    @if (isUpstream)
+                    {
+                        <span>↗️ Depends on</span>
+                    }
+                    else
+                    {
+                        <span>↙️ Dependent</span>
+                    }
+                </div>
+            </div>
+            
+            @if (node.Children?.Any() == true)
+            {
+                <div class="mt-2 ml-4 border-l-2 border-gray-200 pl-4">
+                    @foreach (var child in node.Children)
+                    {
+                        @RenderDependencyNode(child, isUpstream, depth + 1)
+                    }
+                </div>
+            }
+        </div>;
     }
 }
