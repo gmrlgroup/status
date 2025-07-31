@@ -20,5 +20,8 @@ public enum EntityType
     DataPipeline = 5,
 
     [Display(Name = "Table")]
-    Table = 6
+    Table = 6,
+
+    [Display(Name = "Data Job")]
+    DataJob = 7,
 }

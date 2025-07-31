@@ -1,0 +1,98 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>4de4976b-3acb-4a48-9b4f-a0e762e5ea25</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>Application.Job.py</StartupFile>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <Name>Application.Job</Name>
+    <RootNamespace>Application.Job</RootNamespace>
+    <InterpreterId>MSBuild|.env|$(MSBuildProjectFullPath)</InterpreterId>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Application.Job.py" />
+    <Compile Include="dagster\app\assets\recurrence\recurring_transaction.py" />
+    <Compile Include="dagster\app\assets\recurrence\__init__.py" />
+    <Compile Include="dagster\app\assets\__init__.py" />
+    <Compile Include="dagster\app\config.py" />
+    <Compile Include="dagster\app\defs\definitions.py" />
+    <Compile Include="dagster\app\defs\__init__.py" />
+    <Compile Include="dagster\app\schedules.py" />
+    <Compile Include="dagster\app\sensors.py" />
+    <Compile Include="dagster\app\__init__.py" />
+    <Compile Include="dagster\run_recurring_transactions.py" />
+    <Compile Include="dagster\tests\test_recurring_transaction_assets.py" />
+    <Compile Include="dagster\tests\__init__.py" />
+    <Compile Include="models\expense_category.py" />
+    <Compile Include="models\frequency_type.py" />
+    <Compile Include="models\income_type.py" />
+    <Compile Include="models\recurring_transaction_data.py" />
+    <Compile Include="models\transaction_type.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Interpreter Include=".env\">
+      <Id>.env</Id>
+      <Version>3.12</Version>
+      <Description>.env (Python 3.12 (64-bit))</Description>
+      <InterpreterPath>Scripts\python.exe</InterpreterPath>
+      <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
+      <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
+      <Architecture>X64</Architecture>
+    </Interpreter>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="dagster\" />
+    <Folder Include="dagster\.nux\" />
+    <Folder Include="dagster\.telemetry\" />
+    <Folder Include="dagster\app\" />
+    <Folder Include="dagster\app\assets\" />
+    <Folder Include="dagster\app\assets\recurrence\" />
+    <Folder Include="dagster\app\assets\recurrence\__pycache__\" />
+    <Folder Include="dagster\app\assets\__pycache__\" />
+    <Folder Include="dagster\app\defs\" />
+    <Folder Include="dagster\app\__pycache__\" />
+    <Folder Include="dagster\logs\" />
+    <Folder Include="dagster\storage\" />
+    <Folder Include="dagster\tests\" />
+    <Folder Include="models\" />
+    <Folder Include="models\__pycache__\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="dagster\.env" />
+    <Content Include="dagster\.telemetry\id.yaml" />
+    <Content Include="dagster\app\assets\recurrence\__pycache__\recurring_transaction.cpython-312.pyc" />
+    <Content Include="dagster\app\assets\recurrence\__pycache__\__init__.cpython-312.pyc" />
+    <Content Include="dagster\app\assets\__pycache__\__init__.cpython-312.pyc" />
+    <Content Include="dagster\app\__pycache__\schedules.cpython-312.pyc" />
+    <Content Include="dagster\app\__pycache__\sensors.cpython-312.pyc" />
+    <Content Include="dagster\app\__pycache__\__init__.cpython-312.pyc" />
+    <Content Include="dagster\dagster.yaml" />
+    <Content Include="dagster\logs\event.log" />
+    <Content Include="dagster\pyproject.toml" />
+    <Content Include="dagster\README.md" />
+    <Content Include="dagster\workspace.yaml" />
+    <Content Include="models\__pycache__\frequency_type.cpython-312.pyc" />
+    <Content Include="models\__pycache__\transaction_type.cpython-312.pyc" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+  <!-- Uncomment the CoreCompile target to enable the Build command in
+       Visual Studio and specify your pre- and post-build commands in
+       the BeforeBuild and AfterBuild targets below. -->
+  <!--<Target Name="CoreCompile" />-->
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+</Project>

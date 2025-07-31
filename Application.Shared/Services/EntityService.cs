@@ -347,4 +347,96 @@ public class EntityService : IEntityService
             .OrderBy(d => d.Order)
             .ToListAsync();
     }
+
+    public async Task<DependencyTree> GetEntityDependencyTreeAsync(string entityId)
+    {
+        var entity = await GetEntityAsync(entityId);
+        if (entity == null)
+        {
+            throw new ArgumentException("Entity not found", nameof(entityId));
+        }
+
+        var latestStatus = await GetLatestEntityStatusAsync(entityId);
+
+        var tree = new DependencyTree
+        {
+            EntityId = entity.Id,
+            EntityName = entity.Name,
+            EntityType = entity.EntityType,
+            CurrentStatus = latestStatus?.Status ?? EntityStatus.Unknown
+        };
+
+        // Build dependency tree (what this entity depends on)
+        tree.Dependencies = await BuildDependencyNodes(entityId, true, new HashSet<string>(), 0);
+        
+        // Build dependent tree (what depends on this entity)
+        tree.Dependents = await BuildDependencyNodes(entityId, false, new HashSet<string>(), 0);
+
+        return tree;
+    }
+
+    private async Task<List<DependencyTreeNode>> BuildDependencyNodes(string entityId, bool isDependency, HashSet<string> visitedEntities, int level)
+    {
+        // Prevent infinite loops in circular dependencies
+        if (visitedEntities.Contains(entityId))
+        {
+            return new List<DependencyTreeNode>();
+        }
+
+        visitedEntities.Add(entityId);
+        var nodes = new List<DependencyTreeNode>();
+
+        List<EntityDependency> dependencies;
+        if (isDependency)
+        {
+            // Get what this entity depends on
+            dependencies = await _context.EntityDependency
+                .Where(d => d.EntityId == entityId)
+                .Include(d => d.DependsOnEntity)
+                .OrderBy(d => d.Order)
+                .ToListAsync();
+        }
+        else
+        {
+            // Get what depends on this entity
+            dependencies = await _context.EntityDependency
+                .Where(d => d.DependsOnEntityId == entityId)
+                .Include(d => d.Entity)
+                .OrderBy(d => d.Order)
+                .ToListAsync();
+        }
+
+        foreach (var dependency in dependencies)
+        {
+            var targetEntity = isDependency ? dependency.DependsOnEntity : dependency.Entity;
+            if (targetEntity == null) continue;
+
+            var targetLatestStatus = await GetLatestEntityStatusAsync(targetEntity.Id);
+
+            var node = new DependencyTreeNode
+            {
+                EntityId = targetEntity.Id,
+                EntityName = targetEntity.Name,
+                EntityType = targetEntity.EntityType,
+                CurrentStatus = targetLatestStatus?.Status ?? EntityStatus.Unknown,
+                IsCritical = dependency.IsCritical,
+                IsActive = dependency.IsActive,
+                Description = dependency.Description,
+                Order = dependency.Order,
+                Level = level
+            };
+
+            // Recursively build children (limit depth to prevent excessive nesting)
+            if (level < 5) // Max depth of 5 levels
+            {
+                var newVisited = new HashSet<string>(visitedEntities);
+                node.Children = await BuildDependencyNodes(targetEntity.Id, isDependency, newVisited, level + 1);
+            }
+
+            nodes.Add(node);
+        }
+
+        visitedEntities.Remove(entityId);
+        return nodes;
+    }
 }

@@ -32,4 +32,5 @@ public interface IEntityService
     Task<bool> DeleteEntityDependencyAsync(string dependencyId);
     Task<List<EntityDependency>> GetEntityDependenciesAsync(string entityId);
     Task<List<EntityDependency>> GetEntityDependentsAsync(string entityId);
+    Task<DependencyTree> GetEntityDependencyTreeAsync(string entityId);
 }
