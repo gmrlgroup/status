@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Application", "Application\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Application.Client", "Application.Client\Application.Client.csproj", "{21A87AA1-71E7-4C48-8AE3-1FE5422EA8BA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Application.Api", "Application.Api\Application.Api.csproj", "{CA969EA3-5A78-4CD6-92DB-C9651B63C514}"
+EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Application.Job", "Application.Job\Application.Job.pyproj", "{4DE4976B-3ACB-4A48-9B4F-A0E762E5EA25}"
 EndProject
 Global
@@ -29,6 +31,12 @@ Global
 		{21A87AA1-71E7-4C48-8AE3-1FE5422EA8BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{21A87AA1-71E7-4C48-8AE3-1FE5422EA8BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{21A87AA1-71E7-4C48-8AE3-1FE5422EA8BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA969EA3-5A78-4CD6-92DB-C9651B63C514}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA969EA3-5A78-4CD6-92DB-C9651B63C514}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA969EA3-5A78-4CD6-92DB-C9651B63C514}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA969EA3-5A78-4CD6-92DB-C9651B63C514}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4DE4976B-3ACB-4A48-9B4F-A0E762E5EA25}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4DE4976B-3ACB-4A48-9B4F-A0E762E5EA25}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
