@@ -49,6 +49,7 @@ public class Entity : BaseModel
     public virtual ICollection<Job> Jobs { get; set; } = new List<Job>();
 
     // Navigation property for status history
+    [JsonIgnore]
     public virtual ICollection<EntityStatusHistory> StatusHistory { get; set; } = new List<EntityStatusHistory>();
 
     // Navigation property for incidents

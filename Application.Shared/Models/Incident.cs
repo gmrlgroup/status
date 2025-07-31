@@ -25,7 +25,7 @@ public class Incident : BaseModel
     [Required]
     public IncidentStatus Status { get; set; } = IncidentStatus.Open;
 
-    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? StartedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? ResolvedAt { get; set; }
 

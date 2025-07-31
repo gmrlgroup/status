@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Application.Shared.Enums;
 
 namespace Application.Shared.Models;
@@ -6,7 +7,8 @@ namespace Application.Shared.Models;
 public class EntityStatusHistory : BaseModel
 {
     [Key]
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int? Id { get; set; }
 
     [Required]
     public string EntityId { get; set; } = string.Empty;
@@ -23,8 +25,8 @@ public class EntityStatusHistory : BaseModel
     // Uptime percentage at the time of this status check
     public double? UptimePercentage { get; set; }
 
-    public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CheckedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation property back to Entity
-    public virtual Entity Entity { get; set; } = null!;
+    public virtual Entity? Entity { get; set; } = null!;
 }

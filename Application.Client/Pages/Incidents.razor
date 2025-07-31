@@ -134,7 +134,7 @@
                                         </div>
                                         <div class="text-right">
                                             <p class="text-sm text-gray-900">
-                                                @incident.StartedAt.ToString("MMM dd, yyyy")
+                                                @incident.StartedAt.Value.ToString("MMM dd, yyyy")
                                             </p>
                                             <p class="text-sm text-gray-500">
                                                 @if (incident.IsResolved)
@@ -156,7 +156,7 @@
                                 </div>
                                 <div class="mt-2">
                                     <p class="text-sm text-gray-600">
-                                        @incident.Description
+                                        @incident.Description.Take(100) + (incident.Description.Length > 100 ? "..." : "")
                                     </p>
                                 </div>
                             </div>

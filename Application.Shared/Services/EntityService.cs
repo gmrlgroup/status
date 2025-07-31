@@ -8,10 +8,12 @@ namespace Application.Shared.Services;
 public class EntityService : IEntityService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IIncidentService _incidentService;
 
-    public EntityService(ApplicationDbContext context)
+    public EntityService(ApplicationDbContext context, IIncidentService incidentService)
     {
         _context = context;
+        _incidentService = incidentService;
     }
 
     public async Task<List<Entity>> GetEntitiesAsync(string workspaceId)
@@ -124,6 +126,89 @@ public class EntityService : IEntityService
         await _context.SaveChangesAsync();
 
         return statusHistory;
+    }
+
+    public async Task<EntityStatusHistory> UpdateEntityStatusWithIncidentHandlingAsync(string entityId, EntityStatus newStatus, string statusMessage, EntityStatus previousStatus, string workspaceId, string updatedBy)
+    {
+        // First, add the status history entry
+        var statusHistory = await AddEntityStatusAsync(entityId, newStatus, statusMessage);
+        
+        try
+        {
+            // Get the entity to check if it exists and get its details
+            var entity = await GetEntityAsync(entityId);
+            if (entity == null)
+            {
+                throw new ArgumentException("Entity not found", nameof(entityId));
+            }
+
+            // Handle incident creation/resolution based on status changes
+            if (previousStatus == EntityStatus.Online && newStatus != EntityStatus.Online)
+            {
+                // Status changed from Online to something else - create an incident
+                await CreateIncidentForStatusChange(entity, newStatus, statusMessage, workspaceId, updatedBy);
+            }
+            else if (previousStatus != EntityStatus.Online && newStatus == EntityStatus.Online)
+            {
+                // Status changed from non-Online to Online - resolve any open incidents
+                await ResolveIncidentsForEntity(entityId, statusMessage, workspaceId, updatedBy);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log the error but don't fail the status update
+            // In a real application, you might want to use proper logging here
+            Console.WriteLine($"Error handling incidents for entity status change: {ex.Message}");
+        }
+
+        return statusHistory;
+    }
+
+    private async Task CreateIncidentForStatusChange(Entity entity, EntityStatus newStatus, string statusMessage, string workspaceId, string createdBy)
+    {
+        var severityMapping = newStatus switch
+        {
+            EntityStatus.Error => IncidentSeverity.Critical,
+            EntityStatus.Offline => entity.IsCritical ? IncidentSeverity.High : IncidentSeverity.Medium,
+            EntityStatus.Degraded => IncidentSeverity.Medium,
+            EntityStatus.Maintenance => IncidentSeverity.Low,
+            _ => IncidentSeverity.Medium
+        };
+
+        var incident = new Incident
+        {
+            EntityId = entity.Id,
+            Title = $"{entity.Name} - Status Changed to {newStatus}",
+            Description = $"Entity '{entity.Name}' status has changed from Online to {newStatus}.\n\nDetails: {statusMessage}",
+            Severity = severityMapping,
+            Status = IncidentStatus.Open,
+            ReportedBy = createdBy,
+            WorkspaceId = workspaceId,
+            ImpactDescription = entity.IsCritical ? "Critical entity affected - high impact expected" : "Service may be impacted"
+        };
+
+        await _incidentService.CreateIncidentAsync(incident);
+    }
+
+    private async Task ResolveIncidentsForEntity(string entityId, string resolutionMessage, string workspaceId, string resolvedBy)
+    {
+        // Get all open incidents for this entity
+        var openIncidents = await _incidentService.GetIncidentsByEntityAsync(entityId);
+        var activeIncidents = openIncidents.Where(i => i.Status != IncidentStatus.Resolved && i.WorkspaceId == workspaceId);
+
+        foreach (var incident in activeIncidents)
+        {
+            try
+            {
+                var fullResolutionMessage = $"Entity status restored to Online. {resolutionMessage}";
+                await _incidentService.ResolveIncidentAsync(incident.Id, fullResolutionMessage, resolvedBy);
+            }
+            catch (Exception ex)
+            {
+                // Log error but continue with other incidents
+                Console.WriteLine($"Error resolving incident {incident.Id}: {ex.Message}");
+            }
+        }
     }
 
     public async Task<EntityStatusHistory?> GetLatestEntityStatusAsync(string entityId)

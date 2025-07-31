@@ -1,4 +1,5 @@
 ﻿@page "/"
+@using Application.Client.Components
 @using Application.Shared.Models
 @using Application.Shared.Enums
 @using Application.Client.Services
@@ -216,9 +217,9 @@
                                                     @GetIncidentStatusText(incident.Status)
                                                 </span>
                                             </div>
-                                            <p class="text-sm text-gray-600 mb-2">@incident.Description</p>
+                                            <p class="text-sm text-gray-600 mb-2">@incident.Description.Take(100)  + (incident.Description.Length > 100 ? "..." : "")</p>
                                             <div class="flex items-center space-x-4 text-xs text-gray-500">
-                                                <span>Started: @incident.StartedAt.ToString("MMM dd, HH:mm")</span>
+                                                <span>Started: @incident.StartedAt.Value.ToString("MMM dd, HH:mm")</span>
                                                 @if (!string.IsNullOrEmpty(incident.AssignedTo))
                                                 {
                                                     <span>Assigned to: @incident.AssignedTo</span>
@@ -393,6 +394,9 @@
                                                     </div>
                                                 </div>
                                             }
+
+                                            <!-- Entity Status History Component -->
+                                            <StatusHistoryComponent EntityId="@entity.Id" WorkspaceId="@(WorkspaceId ?? "default")" />
                                         </div>
                                     }
                                 }
