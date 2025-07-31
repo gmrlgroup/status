@@ -170,7 +170,7 @@
 
                                 <div>
                                     <dt class="text-sm font-medium text-gray-500">Started</dt>
-                                    <dd class="mt-1 text-sm text-gray-900">@incident.StartedAt.ToString("MMM dd, yyyy 'at' h:mm tt")</dd>
+                                    <dd class="mt-1 text-sm text-gray-900">@incident.StartedAt.Value.ToString("MMM dd, yyyy 'at' h:mm tt")</dd>
                                 </div>
 
                                 @if (incident.ResolvedAt.HasValue)

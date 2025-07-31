@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Application", "Application\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Application.Client", "Application.Client\Application.Client.csproj", "{21A87AA1-71E7-4C48-8AE3-1FE5422EA8BA}"
 EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Application.Job", "Application.Job\Application.Job.pyproj", "{4DE4976B-3ACB-4A48-9B4F-A0E762E5EA25}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

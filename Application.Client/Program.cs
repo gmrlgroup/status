@@ -23,6 +23,7 @@ builder.Services.AddScoped<StateContainer>();
 // Register client services
 builder.Services.AddScoped<EntityClientService>();
 builder.Services.AddScoped<IncidentClientService>();
+builder.Services.AddScoped<EntityStatusHistoryClientService>();
 
 //builder.Services.AddScoped<IExerciseService, ExerciseService>();
 //builder.Services.AddScoped<IPlanExerciseService, PlanExerciseService>();

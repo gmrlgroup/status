@@ -83,7 +83,7 @@
                 </div>
                 
                 <!-- FluentDataGrid -->
-                <div class="overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="overflow-x-auto bg-white" style="min-height: 70vh; max-height: 70vh;">
                     <FluentDataGrid Items="@filteredEntities.AsQueryable()" 
                                     Class="w-full table-auto"
                                     ShowHover="true"
@@ -99,6 +99,11 @@
                                     @context.EntityType.ToString()
                                 </span>
                             </div>
+                        </TemplateColumn>
+
+                        <TemplateColumn Title="Group"
+                                        Class="px-6 py-4">
+                            <span class="text-sm text-gray-900">@(context.Group ?? "-")</span>
                         </TemplateColumn>
                         
                         <TemplateColumn Title="Name" 
@@ -122,9 +127,9 @@
                             <span class="text-sm text-gray-900">@(context.Owner ?? "-")</span>
                         </TemplateColumn>
                         
-                        <TemplateColumn Title="Version"
+                        <TemplateColumn Title="Location"
                                         Class="px-6 py-4">
-                            <span class="text-sm text-gray-900">@(context.Version ?? "-")</span>
+                            <span class="text-sm text-gray-900">@(context.Location ?? "-")</span>
                         </TemplateColumn>
                         
                         <TemplateColumn Title="Dependencies"

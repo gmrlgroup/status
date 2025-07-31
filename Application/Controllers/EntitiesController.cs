@@ -159,16 +159,45 @@ public class EntitiesController : ControllerBase
 
     // POST: api/Entities/{id}/status
     [HttpPost("{id}/status")]
-    public async Task<IActionResult> UpdateEntityStatus(string id, [FromBody] UpdateStatusRequest request)
+    public async Task<IActionResult> UpdateEntityStatus(string id, [FromBody] UpdateEntityStatusRequest request)
     {
-        var statusHistory = await _entityService.AddEntityStatusAsync(id, request.Status, request.StatusMessage);
+        var workspaceId = Request.Headers["X-Workspace-ID"].ToString();
         
-        if (statusHistory == null)
+        if (string.IsNullOrEmpty(workspaceId))
+        {
+            return BadRequest("Workspace ID is required in headers");
+        }
+
+        try
+        {
+            var result = await _entityService.UpdateEntityStatusWithIncidentHandlingAsync(
+                id, 
+                request.Status, 
+                request.StatusMessage, 
+                request.PreviousStatus,
+                workspaceId,
+                User?.Identity?.Name ?? "System");
+            
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Error updating entity status: {ex.Message}");
+        }
+    }
+
+    // GET: api/Entities/{id}/status/latest
+    [HttpGet("{id}/status/latest")]
+    public async Task<ActionResult<EntityStatusHistory>> GetLatestEntityStatus(string id)
+    {
+        var latestStatus = await _entityService.GetLatestEntityStatusAsync(id);
+        
+        if (latestStatus == null)
         {
             return NotFound();
         }
 
-        return Ok(statusHistory);
+        return Ok(latestStatus);
     }
 
     // POST: api/Entities/{id}/ping
@@ -280,4 +309,12 @@ public class UpdateStatusRequest
 {
     public EntityStatus Status { get; set; }
     public string? StatusMessage { get; set; }
+}
+
+public class UpdateEntityStatusRequest
+{
+    public EntityStatus Status { get; set; }
+    public string StatusMessage { get; set; } = string.Empty;
+    public string EntityId { get; set; } = string.Empty;
+    public EntityStatus PreviousStatus { get; set; }
 }

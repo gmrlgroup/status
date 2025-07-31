@@ -15,6 +15,7 @@ public interface IEntityService
     Task<List<Entity>> GetActiveEntitiesAsync(string workspaceId);
     Task<List<Entity>> GetEntitiesWithCurrentStatusAsync(string workspaceId, EntityStatus status);
     Task<EntityStatusHistory> AddEntityStatusAsync(string entityId, EntityStatus status, string? statusMessage = null, double? responseTime = null, double? uptimePercentage = null);
+    Task<EntityStatusHistory> UpdateEntityStatusWithIncidentHandlingAsync(string entityId, EntityStatus newStatus, string statusMessage, EntityStatus previousStatus, string workspaceId, string updatedBy);
     Task<EntityStatusHistory?> GetLatestEntityStatusAsync(string entityId);
     Task<List<EntityStatusHistory>> GetEntityStatusHistoryAsync(string entityId, DateTime? fromDate = null, DateTime? toDate = null);
     Task<bool> UpdateEntityUptimeAsync(string id, double uptimePercentage);

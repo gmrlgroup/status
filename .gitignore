@@ -422,3 +422,7 @@ FodyWeavers.xsd
 appsettings.json
 appsettings.Development.json
 Application/Migrations/*
+
+
+Dagster
+.telemetry/*

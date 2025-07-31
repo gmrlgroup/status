@@ -117,6 +117,7 @@ builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IEntityService, EntityService>();
 builder.Services.AddScoped<IIncidentService, IncidentService>();
+builder.Services.AddScoped<IEntityStatusHistoryService, EntityStatusHistoryService>();
 
 
 // Add EmailSettings configuration
